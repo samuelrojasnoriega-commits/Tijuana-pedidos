@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tijuana — Pedidos de Materia Prima</title>
+  <style>
+    /* ── Variables ─────────────────────────────────────────────── */
+    :root {
+      --bg:          #0d0d14;
+      --surface:     #16161f;
+      --surface2:    #1e1e2a;
+      --surface3:    #252535;
+      --border:      #2a2a3e;
+      --accent:      #f05c2a;
+      --accent-h:    #ff7a48;
+      --green:       #2dd4bf;
+      --green-bg:    #0b2e28;
+      --green-bdr:   #1a5a4a;
+      --red:         #f87171;
+      --red-bg:      #2a0e0e;
+      --red-bdr:     #5a1e1e;
+      --amber:       #fbbf24;
+      --amber-bg:    #2a1e08;
+      --amber-bdr:   #5a3e10;
+      --blue:        #60a5fa;
+      --blue-bg:     #0a1a2e;
+      --blue-bdr:    #1a3a5e;
+      --text:        #e0e0f0;
+      --muted:       #7070a0;
+      --radius:      10px;
+    }
+
+    /* ── Reset & Base ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 15px;
+    }
+    ::selection { background: var(--accent); color: #fff; }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      padding: 0 2rem;
+      height: 62px;
+      backdrop-filter: blur(8px);
+    }
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--accent);
+      text-transform: uppercase;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    .logo span { color: var(--muted); font-weight: 400; font-size: 0.8rem; letter-spacing: 1px; margin-left: 6px; }
+
+    /* ── Layout ────────────────────────────────────────────────── */
+    .view { display: none; padding: 2rem; max-width: 920px; margin: 0 auto; }
+    .view.active { display: block; }
+
+    .page-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+
+    /* ── Card ──────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.6rem;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Form elements ─────────────────────────────────────────── */
+    .field-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .field { margin-bottom: 1.2rem; }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: 0.93rem;
+      outline: none;
+      transition: border-color .18s, box-shadow .18s;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(240,92,42,.14);
+    }
+    select { cursor: pointer; }
+    select option { background: var(--surface2); }
+    textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+    /* ── Ingredient rows ───────────────────────────────────────── */
+    .items-header {
+      display: grid;
+      grid-template-columns: 1fr 100px 110px 36px;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .items-header span {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      padding: 0 4px;
+    }
+
+    .item-row {
+      display: grid;
+      grid-template-columns: 1fr 100px 110px 36px;
+      gap: 8px;
+      margin-bottom: 6px;
+      align-items: center;
+      animation: fadeRow .2s ease;
+    }
+    @keyframes fadeRow { from { opacity:0; transform:translateY(-4px) } to { opacity:1; transform:none } }
+
+    .btn-remove {
+      width: 36px; height: 36px;
+      background: var(--red-bg);
+      border: 1px solid var(--red-bdr);
+      color: var(--red);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.15rem;
+      line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+      flex-shrink: 0;
+    }
+    .btn-remove:hover { background: #4a1414; }
+
+    .btn-add-row {
+      width: 100%;
+      margin-top: 4px;
+      padding: 8px;
+      background: transparent;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-family: inherit;
+      transition: all .18s;
+    }
+    .btn-add-row:hover { border-color: var(--accent); color: var(--accent); background: rgba(240,92,42,.05); }
+
+    /* ── Buttons ───────────────────────────────────────────────── */
+    .btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      border: none;
+      border-radius: 9px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .18s, transform .1s;
+      letter-spacing: .3px;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-h); }
+    .btn-primary:active:not(:disabled) { transform: scale(.99); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+    .btn-outline {
+      padding: 7px 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all .18s;
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-deliver {
+      padding: 8px 18px;
+      background: transparent;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      color: var(--accent);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .18s;
+      white-space: nowrap;
+    }
+    .btn-deliver:hover { background: var(--accent); color: #fff; }
+
+    /* ── Badges ────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: .4px;
+      white-space: nowrap;
+    }
+    .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .badge-transit {
+      background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-bdr);
+    }
+    .badge-transit::before { background: var(--amber); animation: pulse 1.6s infinite; }
+    .badge-delivered {
+      background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr);
+    }
+    .badge-delivered::before { background: var(--green); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── Restaurant label ──────────────────────────────────────── */
+    .rest-chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 5px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: .3px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .chip-cantina { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-bdr); }
+    .chip-urbana  { background: var(--blue-bg);  color: var(--blue);  border: 1px solid var(--blue-bdr);  }
+
+    /* ── Order card ────────────────────────────────────────────── */
+    .order-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.4rem; margin-bottom: .9rem; transition: border-color .2s; }
+    .order-card:hover { border-color: #3a3a55; }
+
+    .order-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 1rem; }
+    .order-title { font-size: 1rem; font-weight: 700; }
+    .order-meta { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
+    .order-nota { font-size: 0.82rem; color: var(--muted); font-style: italic; margin-top: 4px; }
+
+    /* ── Items table ───────────────────────────────────────────── */
+    .items-tbl { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .items-tbl th {
+      text-align: left; color: var(--muted);
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: .5px;
+      padding: 6px 8px; border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .items-tbl td { padding: 7px 8px; border-bottom: 1px solid var(--border); }
+    .items-tbl tbody tr:last-child td { border-bottom: none; }
+    .items-tbl .cost-cell { width: 120px; }
+
+    .cost-inp {
+      width: 110px !important;
+      padding: 5px 8px !important;
+      font-size: 0.85rem !important;
+      text-align: right;
+    }
+    .cost-inp.saved { border-color: var(--green) !important; }
+    .cost-inp.error { border-color: var(--red) !important; }
+
+    .total-row { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .total-label { font-size: 0.85rem; color: var(--muted); }
+    .total-val { font-size: 1.15rem; font-weight: 800; color: var(--green); font-variant-numeric: tabular-nums; }
+
+    .order-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+    /* ── Filters ───────────────────────────────────────────────── */
+    .toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1.4rem; gap: 1rem; flex-wrap: wrap;
+    }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filters select { width: auto; }
+
+    /* ── Alerts ────────────────────────────────────────────────── */
+    .alert {
+      padding: 10px 14px; border-radius: 9px;
+      font-size: 0.88rem; margin-bottom: 1rem;
+      animation: fadeRow .25s ease;
+    }
+    .alert-ok  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bdr); }
+    .alert-err { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red-bdr);   }
+
+    /* ── Empty state ───────────────────────────────────────────── */
+    .empty { text-align: center; padding: 4rem 2rem; color: var(--muted); }
+    .empty-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+
+    /* ── Loading spinner ───────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Admin link & logout ───────────────────────────────────── */
+    .btn-admin-link {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 0.78rem; font-family: inherit;
+      padding: 6px 10px; border-radius: 6px;
+      transition: color .18s, background .18s;
+      display: block; margin: 1.6rem auto 0;
+      opacity: .55;
+    }
+    .btn-admin-link:hover { color: var(--text); background: var(--surface3); opacity: 1; }
+
+    .btn-logout {
+      padding: 7px 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all .18s;
+      white-space: nowrap;
+    }
+    .btn-logout:hover { border-color: var(--red-bdr); color: var(--red); }
+
+    /* ── Modal overlay ─────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 999;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%; max-width: 360px;
+      margin: 1rem;
+      animation: slideUp .22s ease;
+    }
+    @keyframes slideUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:none } }
+
+    .modal-title {
+      font-size: 1rem; font-weight: 700;
+      margin-bottom: .35rem;
+    }
+    .modal-sub {
+      font-size: 0.82rem; color: var(--muted);
+      margin-bottom: 1.4rem;
+    }
+    .modal-error {
+      font-size: 0.82rem; color: var(--red);
+      margin-top: .6rem; min-height: 1.1rem;
+      animation: shake .3s ease;
+    }
+    @keyframes shake {
+      0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)}
+    }
+    .modal-actions { display: flex; gap: .6rem; margin-top: 1.2rem; }
+    .modal-actions .btn-primary { flex: 1; padding: 10px; font-size: .9rem; }
+    .btn-cancel {
+      padding: 10px 16px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--muted);
+      font-family: inherit; font-size: .9rem;
+      cursor: pointer; transition: all .18s;
+    }
+    .btn-cancel:hover { color: var(--text); }
+
+    /* ── Sub-tabs (owner view) ─────────────────────────────────── */
+    .sub-tabs {
+      display: flex; gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.6rem;
+      padding-bottom: 0;
+    }
+    .sub-tab {
+      padding: 8px 20px;
+      border: none; border-bottom: 2px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit; font-size: 0.92rem; font-weight: 500;
+      cursor: pointer; transition: all .18s;
+      margin-bottom: -1px;
+      border-radius: 6px 6px 0 0;
+    }
+    .sub-tab:hover:not(.active) { color: var(--text); background: var(--surface3); }
+    .sub-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+
+    /* ── Report filters ─────────────────────────────────────────── */
+    .rpt-filters {
+      display: flex; align-items: center; gap: 8px;
+      flex-wrap: wrap; margin-bottom: 1.4rem;
+    }
+    .rpt-period-btn {
+      padding: 6px 16px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; color: var(--muted);
+      font-family: inherit; font-size: 0.85rem;
+      cursor: pointer; transition: all .18s;
+    }
+    .rpt-period-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .rpt-period-btn.active {
+      background: var(--accent); border-color: var(--accent);
+      color: #fff; font-weight: 600;
+    }
+    .rpt-custom-range {
+      display: none; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .rpt-custom-range.open { display: flex; }
+    .rpt-custom-range input[type="date"] { width: 145px; }
+    .rpt-custom-range .btn-apply {
+      padding: 6px 14px; background: var(--accent); border: none;
+      border-radius: 8px; color: #fff; font-family: inherit;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer;
+      transition: background .18s;
+    }
+    .rpt-custom-range .btn-apply:hover { background: var(--accent-h); }
+
+    /* ── Stat cards ─────────────────────────────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: .9rem; margin-bottom: 1.2rem;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.2rem 1.4rem;
+    }
+    .stat-card.accent-cantina { border-color: var(--amber-bdr); background: var(--amber-bg); }
+    .stat-card.accent-urbana  { border-color: var(--blue-bdr);  background: var(--blue-bg);  }
+    .stat-label {
+      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .5px; color: var(--muted); margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 1.55rem; font-weight: 800;
+      color: var(--text); font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+    .stat-card.accent-cantina .stat-value { color: var(--amber); }
+    .stat-card.accent-urbana  .stat-value { color: var(--blue);  }
+    .stat-sub {
+      font-size: 0.78rem; color: var(--muted); margin-top: 4px;
+    }
+
+    /* ── Report section title ───────────────────────────────────── */
+    .rpt-section-title {
+      font-size: 0.88rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .6px; color: var(--muted); margin-bottom: 1rem;
+    }
+
+    /* ── Report table ───────────────────────────────────────────── */
+    .rpt-tbl { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .rpt-tbl th {
+      text-align: left; color: var(--muted);
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: .5px;
+      padding: 6px 10px; border-bottom: 1px solid var(--border); font-weight: 600;
+    }
+    .rpt-tbl td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+    .rpt-tbl tbody tr:last-child td { border-bottom: none; }
+    .rpt-tbl tbody tr:hover td { background: var(--surface2); }
+
+    /* ── Top 5 ingredientes ─────────────────────────────────────── */
+    .top-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .top-item:last-child { border-bottom: none; }
+    .top-rank {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--surface3); color: var(--muted);
+      font-size: 0.75rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .top-item:first-child .top-rank { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-bdr); }
+    .top-info { flex: 1; min-width: 0; }
+    .top-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top-bar-wrap { height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+    .top-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width .5s ease; }
+    .top-stats { text-align: right; flex-shrink: 0; }
+    .top-count { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+    .top-qty   { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      header { padding: 0 1rem; }
+      .view { padding: 1rem; }
+      .two-col { grid-template-columns: 1fr; }
+      .items-header, .item-row { grid-template-columns: 1fr 80px 90px 36px; }
+      .cost-inp { width: 80px !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════ HEADER ════════════════════ -->
+<header>
+  <div class="logo">Tijuana <span>Pedidos</span></div>
+  <div style="flex:1"></div>
+  <div id="header-dueno-actions" style="display:none">
+    <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- ════════════════════ VISTA COCINA ════════════════════ -->
+<div id="view-cocina" class="view active">
+  <div class="page-title">Nuevo Pedido de Materia Prima</div>
+  <div id="alert-cocina"></div>
+
+  <div class="card">
+    <form id="form-pedido" autocomplete="off">
+
+      <div class="two-col">
+        <div class="field">
+          <label class="field-label">Restaurante</label>
+          <select name="restaurante" required>
+            <option value="">Seleccionar restaurante...</option>
+            <option value="Tijuana La Cantina">Tijuana La Cantina</option>
+            <option value="Tijuana Urbana">Tijuana Urbana</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Trabajador</label>
+          <input type="text" name="trabajador" placeholder="Nombre del trabajador" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Ingredientes</label>
+        <div class="items-header">
+          <span>Ingrediente</span><span>Cantidad</span><span>Unidad</span><span></span>
+        </div>
+        <div id="items-container"></div>
+        <button type="button" class="btn-add-row" onclick="addItemRow()">+ Agregar ingrediente</button>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Nota (opcional)</label>
+        <textarea name="nota" placeholder="Urgencia, instrucciones especiales, etc."></textarea>
+      </div>
+
+      <button type="submit" class="btn-primary" id="btn-submit">Enviar Pedido</button>
+    </form>
+  </div>
+
+  <button class="btn-admin-link" onclick="openModal()">Acceso administrador</button>
+</div>
+
+<!-- ════════════════════ VISTA DUEÑO ════════════════════ -->
+<div id="view-dueno" class="view">
+
+  <!-- Sub-navegación -->
+  <div class="sub-tabs">
+    <button class="sub-tab active" id="stab-pedidos"  onclick="showSubView('pedidos')">Pedidos</button>
+    <button class="sub-tab"        id="stab-reportes" onclick="showSubView('reportes')">Reportes</button>
+  </div>
+
+  <!-- ── Sub-vista: Pedidos ── -->
+  <div id="subview-pedidos">
+    <div class="toolbar">
+      <div class="page-title" style="margin-bottom:0">Pedidos de Materia Prima</div>
+      <div class="filters">
+        <select id="f-restaurante" onchange="renderPedidos()">
+          <option value="">Todos los restaurantes</option>
+          <option value="Tijuana La Cantina">Tijuana La Cantina</option>
+          <option value="Tijuana Urbana">Tijuana Urbana</option>
+        </select>
+        <select id="f-estado" onchange="renderPedidos()">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">En camino</option>
+          <option value="entregado">Entregados</option>
+        </select>
+        <button class="btn-outline" onclick="loadPedidos()">Actualizar</button>
+      </div>
+    </div>
+    <div id="pedidos-list">
+      <div class="empty"><div class="empty-icon">📦</div>Cargando pedidos...</div>
+    </div>
+  </div>
+
+  <!-- ── Sub-vista: Reportes ── -->
+  <div id="subview-reportes" style="display:none">
+
+    <!-- Filtros de período -->
+    <div class="rpt-filters">
+      <button class="rpt-period-btn active" data-period="semana" onclick="setPeriod('semana')">Esta semana</button>
+      <button class="rpt-period-btn"        data-period="mes"    onclick="setPeriod('mes')">Este mes</button>
+      <button class="rpt-period-btn"        data-period="custom" onclick="setPeriod('custom')">Rango personalizado</button>
+      <div class="rpt-custom-range" id="rpt-custom-range">
+        <input type="date" id="rpt-start" onchange="renderReportes()">
+        <span style="color:var(--muted)">—</span>
+        <input type="date" id="rpt-end" onchange="renderReportes()">
+      </div>
+    </div>
+
+    <!-- Tarjetas de resumen -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total gastado</div>
+        <div class="stat-value" id="stat-total">$ 0</div>
+        <div class="stat-sub" id="stat-pedidos-count">0 pedidos</div>
+      </div>
+      <div class="stat-card accent-cantina">
+        <div class="stat-label">Tijuana La Cantina</div>
+        <div class="stat-value" id="stat-cantina">$ 0</div>
+        <div class="stat-sub" id="stat-cantina-count">0 pedidos</div>
+      </div>
+      <div class="stat-card accent-urbana">
+        <div class="stat-label">Tijuana Urbana</div>
+        <div class="stat-value" id="stat-urbana">$ 0</div>
+        <div class="stat-sub" id="stat-urbana-count">0 pedidos</div>
+      </div>
+    </div>
+
+    <!-- Tabla de pedidos del período -->
+    <div class="card">
+      <div class="rpt-section-title">Pedidos del período</div>
+      <table class="rpt-tbl">
+        <thead>
+          <tr><th>Fecha</th><th>Trabajador</th><th>Restaurante</th><th style="text-align:right">Total</th></tr>
+        </thead>
+        <tbody id="rpt-table-body">
+          <tr><td colspan="4" style="text-align:center;color:var(--muted);padding:1.5rem">Selecciona un período</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Top 5 ingredientes -->
+    <div class="card">
+      <div class="rpt-section-title">Top 5 ingredientes más pedidos</div>
+      <div id="rpt-top5">
+        <div style="color:var(--muted);text-align:center;padding:1.5rem">Selecciona un período</div>
+      </div>
+    </div>
+
+  </div><!-- /subview-reportes -->
+</div>
+
+<!-- ════════════════════ MODAL ADMIN ════════════════════ -->
+<div class="modal-overlay" id="modal-admin" onclick="overlayClick(event)">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-title" id="modal-title">Acceso administrador</div>
+    <div class="modal-sub">Ingresa la contraseña para ver los pedidos y costos.</div>
+    <div class="field">
+      <label class="field-label">Contraseña</label>
+      <input
+        type="password"
+        id="modal-pass"
+        placeholder="••••••••"
+        onkeydown="if(event.key==='Enter') tryLogin()"
+        autocomplete="current-password"
+      >
+    </div>
+    <div class="modal-error" id="modal-error"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="tryLogin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════ SCRIPT ════════════════════ -->
+<script>
+'use strict';
+
+/* ── Auth ────────────────────────────────────────── */
+const ADMIN_KEY  = 'tj_admin';
+const ADMIN_PASS = 'admin123';
+
+function isAuthed() {
+  return sessionStorage.getItem(ADMIN_KEY) === '1';
+}
+
+function openModal() {
+  document.getElementById('modal-pass').value  = '';
+  document.getElementById('modal-error').textContent = '';
+  document.getElementById('modal-admin').classList.add('open');
+  setTimeout(() => document.getElementById('modal-pass').focus(), 80);
+}
+
+function closeModal() {
+  document.getElementById('modal-admin').classList.remove('open');
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('modal-admin')) closeModal();
+}
+
+function tryLogin() {
+  const val = document.getElementById('modal-pass').value;
+  if (val === ADMIN_PASS) {
+    sessionStorage.setItem(ADMIN_KEY, '1');
+    closeModal();
+    showView('dueno');
+  } else {
+    const errEl = document.getElementById('modal-error');
+    errEl.textContent = 'Contraseña incorrecta. Intenta de nuevo.';
+    // Re-trigger animation on repeated errors
+    errEl.style.animation = 'none';
+    errEl.offsetHeight; // reflow
+    errEl.style.animation = '';
+    document.getElementById('modal-pass').select();
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem(ADMIN_KEY);
+  showView('cocina');
+}
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.getElementById('header-dueno-actions').style.display =
+    name === 'dueno' ? 'block' : 'none';
+  if (name === 'dueno') {
+    showSubView('pedidos'); // always land on Pedidos tab
+    loadPedidos();
+  }
+}
+
+function showSubView(name) {
+  document.getElementById('subview-pedidos').style.display  = name === 'pedidos'  ? 'block' : 'none';
+  document.getElementById('subview-reportes').style.display = name === 'reportes' ? 'block' : 'none';
+  document.getElementById('stab-pedidos').classList.toggle('active',  name === 'pedidos');
+  document.getElementById('stab-reportes').classList.toggle('active', name === 'reportes');
+  if (name === 'reportes') renderReportes();
+}
+
+/* ── State ──────────────────────────────────────── */
+let allPedidos = [];
+let rowCounter  = 0;
+
+/* ── Ingredient rows (kitchen form) ─────────────── */
+const UNITS = ['kg','g','L','ml','unid','caja','bolsa','paquete','atado','docena'];
+
+function addItemRow() {
+  rowCounter++;
+  const id = rowCounter;
+  const unitOptions = UNITS.map(u => `<option value="${u}">${u}</option>`).join('');
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.id = 'row-' + id;
+  row.innerHTML = `
+    <input type="text"   placeholder="Ej: Tomate cherry"  data-role="nombre"    required>
+    <input type="number" placeholder="0"  step="any" min="0.01" data-role="cantidad" required>
+    <select data-role="unidad">${unitOptions}</select>
+    <button type="button" class="btn-remove" onclick="removeRow(${id})" title="Eliminar">×</button>
+  `;
+  document.getElementById('items-container').appendChild(row);
+  row.querySelector('[data-role="nombre"]').focus();
+}
+
+function removeRow(id) {
+  const el = document.getElementById('row-' + id);
+  if (el) el.remove();
+}
+
+function collectItems() {
+  const rows = document.querySelectorAll('#items-container .item-row');
+  const items = [];
+  for (const row of rows) {
+    const nombre   = row.querySelector('[data-role="nombre"]').value.trim();
+    const cantidad = parseFloat(row.querySelector('[data-role="cantidad"]').value);
+    const unidad   = row.querySelector('[data-role="unidad"]').value;
+    if (!nombre || !cantidad || cantidad <= 0) return null;
+    items.push({ nombre, cantidad, unidad, costo: 0 });
+  }
+  return items;
+}
+
+/* ── Submit form ────────────────────────────────── */
+document.getElementById('form-pedido').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form  = e.target;
+  const items = collectItems();
+
+  if (!items) {
+    toast('cocina', 'Completa todos los campos de ingredientes (nombre y cantidad).', 'err');
+    return;
+  }
+  if (items.length === 0) {
+    toast('cocina', 'Agrega al menos un ingrediente.', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Enviando...';
+
+  try {
+    const res = await apiFetch('/pedidos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        restaurante: form.restaurante.value,
+        trabajador:  form.trabajador.value.trim(),
+        nota:        form.nota.value.trim(),
+        items,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Error del servidor');
+    }
+    toast('cocina', '¡Pedido enviado correctamente!', 'ok');
+    form.reset();
+    document.getElementById('items-container').innerHTML = '';
+    rowCounter = 0;
+    addItemRow();
+  } catch (err) {
+    toast('cocina', 'Error al enviar: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Enviar Pedido';
+  }
+});
+
+/* ── Load & render pedidos ──────────────────────── */
+async function loadPedidos() {
+  try {
+    const res = await apiFetch('/pedidos');
+    allPedidos = await res.json();
+    renderPedidos();
+    // Re-render reports if that sub-view is currently visible
+    if (document.getElementById('subview-reportes').style.display !== 'none') {
+      renderReportes();
+    }
+  } catch (err) {
+    document.getElementById('pedidos-list').innerHTML =
+      `<div class="alert alert-err">Error al cargar pedidos: ${err.message}</div>`;
+  }
+}
+
+function renderPedidos() {
+  const fRest   = document.getElementById('f-restaurante').value;
+  const fEstado = document.getElementById('f-estado').value;
+
+  let list = allPedidos;
+  if (fRest)              list = list.filter(p => p.restaurante === fRest);
+  if (fEstado === 'pendiente') list = list.filter(p => !p.entregado);
+  if (fEstado === 'entregado') list = list.filter(p =>  p.entregado);
+
+  const container = document.getElementById('pedidos-list');
+  if (!list.length) {
+    container.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>No hay pedidos para mostrar.</div>`;
+    return;
+  }
+  container.innerHTML = list.map(buildCard).join('');
+}
+
+function buildCard(p) {
+  const isLaCantina = p.restaurante === 'Tijuana La Cantina';
+  const chipClass   = isLaCantina ? 'chip-cantina' : 'chip-urbana';
+  const badge       = p.entregado
+    ? `<span class="badge badge-delivered">Entregado en ${p.tiempo_entrega}</span>`
+    : `<span class="badge badge-transit">En camino</span>`;
+
+  const total = p.items.reduce((s, i) => s + (i.costo || 0), 0);
+
+  const rows = p.items.map(it => `
+    <tr>
+      <td>${escHtml(it.nombre)}</td>
+      <td>${fmt(it.cantidad)} ${escHtml(it.unidad)}</td>
+      <td class="cost-cell">
+        <input
+          type="number"
+          class="cost-inp"
+          id="cost-${p.id}-${it.id}"
+          value="${it.costo > 0 ? it.costo : ''}"
+          placeholder="$ 0"
+          min="0" step="any"
+          ${p.entregado ? 'style="opacity:.55;pointer-events:none"' : ''}
+          onchange="debounceCosto(${p.id}, ${it.id}, this)"
+        >
+      </td>
+    </tr>
+  `).join('');
+
+  const btnEntregar = !p.entregado
+    ? `<button class="btn-deliver" onclick="marcarEntregado(${p.id})">Marcar como entregado</button>`
+    : '';
+
+  const nota = p.nota ? `<div class="order-nota">"${escHtml(p.nota)}"</div>` : '';
+
+  return `
+    <div class="order-card" id="card-${p.id}">
+      <div class="order-head">
+        <div>
+          <div class="order-title">
+            Pedido #${p.id}
+            <span class="rest-chip ${chipClass}">${escHtml(p.restaurante)}</span>
+          </div>
+          <div class="order-meta">${escHtml(p.trabajador)} &middot; ${p.fecha} ${p.hora}</div>
+          ${nota}
+        </div>
+        <div>${badge}</div>
+      </div>
+
+      <table class="items-tbl">
+        <thead>
+          <tr><th>Ingrediente</th><th>Cantidad</th><th>Costo</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+
+      <div class="total-row">
+        <span class="total-label">Total estimado</span>
+        <span class="total-val" id="total-${p.id}">$\u00a0${fmtCop(total)}</span>
+      </div>
+
+      ${btnEntregar ? `<div class="order-footer">${btnEntregar}</div>` : ''}
+    </div>
+  `;
+}
+
+/* ── Update cost (debounced) ────────────────────── */
+const _debTimers = {};
+
+function debounceCosto(pedidoId, itemId, input) {
+  const key = `${pedidoId}-${itemId}`;
+  clearTimeout(_debTimers[key]);
+  _debTimers[key] = setTimeout(() => saveCosto(pedidoId, itemId, input), 700);
+}
+
+async function saveCosto(pedidoId, itemId, input) {
+  const costo = parseFloat(input.value) || 0;
+  try {
+    const res = await apiFetch(
+      `/pedidos/${pedidoId}/costo?item_id=${itemId}&costo=${costo}`,
+      { method: 'PATCH' }
+    );
+    if (!res.ok) throw new Error();
+
+    // Update local state
+    const pedido = allPedidos.find(p => p.id === pedidoId);
+    if (pedido) {
+      const item = pedido.items.find(i => i.id === itemId);
+      if (item) item.costo = costo;
+      const total = pedido.items.reduce((s, i) => s + (i.costo || 0), 0);
+      const totalEl = document.getElementById('total-' + pedidoId);
+      if (totalEl) totalEl.textContent = `$\u00a0${fmtCop(total)}`;
+    }
+
+    // Visual feedback
+    input.classList.add('saved');
+    setTimeout(() => input.classList.remove('saved'), 1200);
+  } catch {
+    input.classList.add('error');
+    setTimeout(() => input.classList.remove('error'), 1500);
+  }
+}
+
+/* ── Mark delivered ─────────────────────────────── */
+async function marcarEntregado(pedidoId) {
+  if (!confirm(`¿Confirmar entrega del Pedido #${pedidoId}?`)) return;
+  try {
+    const res = await apiFetch(`/pedidos/${pedidoId}/entregar`, { method: 'PATCH' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Error');
+
+    const pedido = allPedidos.find(p => p.id === pedidoId);
+    if (pedido) { pedido.entregado = true; pedido.tiempo_entrega = data.tiempo_entrega; }
+    renderPedidos();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+/* ── Helpers ────────────────────────────────────── */
+async function apiFetch(url, opts = {}) {
+  return fetch(url, opts);
+}
+
+function toast(view, msg, type) {
+  const el = document.getElementById('alert-' + view);
+  el.innerHTML = `<div class="alert alert-${type}">${escHtml(msg)}</div>`;
+  setTimeout(() => { if (el) el.innerHTML = ''; }, 4500);
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmt(n) {
+  return Number.isInteger(n) ? n : +n.toFixed(3);
+}
+
+function fmtCop(n) {
+  if (!n) return '0';
+  return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n);
+}
+
+/* ── Reports ─────────────────────────────────────── */
+let currentPeriod = 'semana';
+
+function setPeriod(period) {
+  currentPeriod = period;
+  document.querySelectorAll('.rpt-period-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.period === period)
+  );
+  const customEl = document.getElementById('rpt-custom-range');
+  if (period === 'custom') {
+    customEl.classList.add('open');
+    // Pre-fill with current month if empty
+    if (!document.getElementById('rpt-start').value) {
+      const today = new Date();
+      const y = today.getFullYear(), m = String(today.getMonth()+1).padStart(2,'0');
+      document.getElementById('rpt-start').value = `${y}-${m}-01`;
+      document.getElementById('rpt-end').value   = today.toISOString().slice(0,10);
+    }
+  } else {
+    customEl.classList.remove('open');
+  }
+  renderReportes();
+}
+
+function getPeriodRange() {
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  if (currentPeriod === 'semana') {
+    const start = new Date(today);
+    const dow = today.getDay(); // 0=Sun
+    start.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1)); // back to Monday
+    start.setHours(0, 0, 0, 0);
+    return { start, end: today };
+  }
+
+  if (currentPeriod === 'mes') {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { start, end: today };
+  }
+
+  // custom
+  const sv = document.getElementById('rpt-start').value;
+  const ev = document.getElementById('rpt-end').value;
+  if (!sv || !ev) return null;
+  return {
+    start: new Date(sv + 'T00:00:00'),
+    end:   new Date(ev + 'T23:59:59'),
+  };
+}
+
+function renderReportes() {
+  const range = getPeriodRange();
+  if (!range) return;
+
+  // Filter by date range
+  const filtered = allPedidos.filter(p => {
+    const d = new Date(p.fecha + 'T00:00:00');
+    return d >= range.start && d <= range.end;
+  });
+
+  const pedidoTotal = p => p.items.reduce((s, i) => s + (i.costo || 0), 0);
+
+  const cantina = filtered.filter(p => p.restaurante === 'Tijuana La Cantina');
+  const urbana  = filtered.filter(p => p.restaurante === 'Tijuana Urbana');
+
+  const totalGlobal  = filtered.reduce((s, p) => s + pedidoTotal(p), 0);
+  const totalCantina = cantina.reduce((s, p) => s + pedidoTotal(p), 0);
+  const totalUrbana  = urbana.reduce((s, p) => s + pedidoTotal(p), 0);
+
+  // Stat cards
+  document.getElementById('stat-total').textContent         = '$ ' + fmtCop(totalGlobal);
+  document.getElementById('stat-pedidos-count').textContent = `${filtered.length} pedido${filtered.length !== 1 ? 's' : ''}`;
+  document.getElementById('stat-cantina').textContent       = '$ ' + fmtCop(totalCantina);
+  document.getElementById('stat-cantina-count').textContent = `${cantina.length} pedido${cantina.length !== 1 ? 's' : ''}`;
+  document.getElementById('stat-urbana').textContent        = '$ ' + fmtCop(totalUrbana);
+  document.getElementById('stat-urbana-count').textContent  = `${urbana.length} pedido${urbana.length !== 1 ? 's' : ''}`;
+
+  // Table
+  const tbody = document.getElementById('rpt-table-body');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:2rem">Sin pedidos en este período</td></tr>`;
+  } else {
+    tbody.innerHTML = filtered.map(p => {
+      const total     = pedidoTotal(p);
+      const chipClass = p.restaurante === 'Tijuana La Cantina' ? 'chip-cantina' : 'chip-urbana';
+      const totalHtml = total > 0
+        ? `<span style="font-weight:700;color:var(--green)">$\u00a0${fmtCop(total)}</span>`
+        : `<span style="color:var(--muted)">—</span>`;
+      return `
+        <tr>
+          <td>${p.fecha}</td>
+          <td>${escHtml(p.trabajador)}</td>
+          <td><span class="rest-chip ${chipClass}">${escHtml(p.restaurante)}</span></td>
+          <td style="text-align:right">${totalHtml}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  // Top 5 ingredientes (por número de pedidos en que aparecen)
+  const counts = {};
+  for (const p of filtered) {
+    for (const it of p.items) {
+      const key = it.nombre.trim().toLowerCase();
+      if (!counts[key]) counts[key] = { nombre: it.nombre.trim(), veces: 0, totalCantidad: 0, unidad: it.unidad };
+      counts[key].veces++;
+      counts[key].totalCantidad += it.cantidad;
+    }
+  }
+  const top5   = Object.values(counts).sort((a, b) => b.veces - a.veces).slice(0, 5);
+  const maxVeces = top5[0]?.veces || 1;
+
+  const top5El = document.getElementById('rpt-top5');
+  if (top5.length === 0) {
+    top5El.innerHTML = `<div style="color:var(--muted);text-align:center;padding:2rem">Sin datos en este período</div>`;
+  } else {
+    top5El.innerHTML = top5.map((it, i) => `
+      <div class="top-item">
+        <div class="top-rank">${i + 1}</div>
+        <div class="top-info">
+          <div class="top-name">${escHtml(it.nombre)}</div>
+          <div class="top-bar-wrap">
+            <div class="top-bar" style="width:${Math.round(it.veces / maxVeces * 100)}%"></div>
+          </div>
+        </div>
+        <div class="top-stats">
+          <div class="top-count">${it.veces} pedido${it.veces !== 1 ? 's' : ''}</div>
+          <div class="top-qty">${fmt(it.totalCantidad)} ${escHtml(it.unidad)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+/* ── Init ───────────────────────────────────────── */
+addItemRow();
+
+// Restore session: if already authenticated, go straight to owner view
+if (isAuthed()) {
+  showView('dueno');
+} else {
+  showView('cocina');
+}
+
+// Auto-refresh owner view every 30 s
+setInterval(() => {
+  if (document.getElementById('view-dueno').classList.contains('active') && isAuthed()) {
+    loadPedidos();
+  }
+}, 30_000);
+</script>
+</body>
+</html>
