@@ -10,9 +10,18 @@ import os
 
 # ── Database ──────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'pedidos.db')}"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+_db_url = os.environ.get("DATABASE_URL")
+
+if _db_url:
+    # Railway entrega "postgres://..." — SQLAlchemy 2.x requiere "postgresql://"
+    if _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL = _db_url
+    engine = create_engine(DATABASE_URL)
+else:
+    DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'pedidos.db')}"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
