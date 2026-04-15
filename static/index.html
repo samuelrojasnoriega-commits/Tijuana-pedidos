@@ -341,6 +341,19 @@
     }
     .btn-admin-link:hover { color: var(--text); background: var(--surface3); opacity: 1; }
 
+    .btn-notif {
+      padding: 7px 14px;
+      background: transparent;
+      border: 1px solid var(--amber-bdr);
+      border-radius: 8px;
+      color: var(--amber);
+      font-family: inherit;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all .18s;
+    }
+    .btn-notif:hover { background: var(--amber-bg); }
+
     .btn-logout {
       padding: 7px 14px;
       background: transparent;
@@ -564,7 +577,8 @@
 <header>
   <div class="logo">Tijuana <span>Pedidos</span></div>
   <div style="flex:1"></div>
-  <div id="header-dueno-actions" style="display:none">
+  <div id="header-dueno-actions" style="display:none;gap:.5rem;align-items:center">
+    <button class="btn-notif" id="btn-notif" onclick="requestNotifPermission()">Activar notificaciones</button>
     <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
   </div>
 </header>
@@ -786,6 +800,16 @@ async function requestNotifPermission() {
   if (Notification.permission === 'default') {
     await Notification.requestPermission();
   }
+  updateNotifBtn();
+}
+
+function updateNotifBtn() {
+  const btn = document.getElementById('btn-notif');
+  if (!btn) return;
+  const supported = 'Notification' in window;
+  const perm = supported ? Notification.permission : 'denied';
+  // Ocultar botón si ya se resolvió el permiso (granted o denied)
+  btn.style.display = (!supported || perm !== 'default') ? 'none' : '';
 }
 
 function subscribeSSE() {
@@ -857,7 +881,8 @@ function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
   document.getElementById('header-dueno-actions').style.display =
-    name === 'dueno' ? 'block' : 'none';
+    name === 'dueno' ? 'flex' : 'none';
+  if (name === 'dueno') updateNotifBtn();
   if (name === 'dueno') {
     showSubView('pedidos'); // always land on Pedidos tab
     loadPedidos();
