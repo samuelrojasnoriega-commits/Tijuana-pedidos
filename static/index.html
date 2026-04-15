@@ -520,6 +520,34 @@
     .top-count { font-size: 0.85rem; font-weight: 700; color: var(--text); }
     .top-qty   { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
 
+    /* ── SSE toast (nuevo pedido en vista cocina) ──────────────── */
+    .sse-toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      max-width: 320px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.45);
+      z-index: 9000;
+      animation: toastIn .3s ease;
+      display: flex; gap: .75rem; align-items: flex-start;
+    }
+    @keyframes toastIn {
+      from { opacity:0; transform:translateY(12px) }
+      to   { opacity:1; transform:none }
+    }
+    .toast-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+    .toast-body { flex: 1; min-width: 0; }
+    .toast-title { font-size: 0.82rem; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+    .toast-msg   { font-size: 0.85rem; color: var(--text); }
+    .toast-close {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 1rem; padding: 0; line-height: 1;
+      flex-shrink: 0; transition: color .15s;
+    }
+    .toast-close:hover { color: var(--text); }
+
     /* ── Responsive ────────────────────────────────────────────── */
     @media (max-width: 600px) {
       header { padding: 0 1rem; }
@@ -730,11 +758,12 @@ function tryLogin() {
   if (val === ADMIN_PASS) {
     sessionStorage.setItem(ADMIN_KEY, '1');
     closeModal();
+    requestNotifPermission();
+    subscribeSSE();
     showView('dueno');
   } else {
     const errEl = document.getElementById('modal-error');
     errEl.textContent = 'Contraseña incorrecta. Intenta de nuevo.';
-    // Re-trigger animation on repeated errors
     errEl.style.animation = 'none';
     errEl.offsetHeight; // reflow
     errEl.style.animation = '';
@@ -743,8 +772,85 @@ function tryLogin() {
 }
 
 function logout() {
+  unsubscribeSSE();
   sessionStorage.removeItem(ADMIN_KEY);
   showView('cocina');
+}
+
+/* ── SSE & Notificaciones ────────────────────────── */
+let _evtSource = null;
+let _toastTimer = null;
+
+async function requestNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+}
+
+function subscribeSSE() {
+  if (_evtSource) return; // ya conectado
+
+  _evtSource = new EventSource('/eventos');
+
+  _evtSource.onmessage = (e) => {
+    let data;
+    try { data = JSON.parse(e.data); } catch { return; }
+
+    if (data.tipo !== 'nuevo_pedido') return;
+
+    // 1. Notificación del navegador (si hay permiso)
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Nuevo pedido — Tijuana', {
+        body: `${data.trabajador}  ·  ${data.restaurante}`,
+        tag:  'pedido-' + data.id, // colapsa notifs del mismo pedido
+      });
+    }
+
+    // 2. Toast in-app (visible en cualquier vista)
+    showSSEToast(data.trabajador, data.restaurante);
+
+    // 3. Recargar lista de pedidos si la vista dueño está activa
+    if (document.getElementById('view-dueno').classList.contains('active')) {
+      loadPedidos();
+    }
+  };
+
+  _evtSource.onerror = () => {
+    // EventSource reconecta solo; solo limpiamos si el admin cerró sesión
+    if (!isAuthed()) {
+      _evtSource.close();
+      _evtSource = null;
+    }
+  };
+}
+
+function unsubscribeSSE() {
+  if (_evtSource) {
+    _evtSource.close();
+    _evtSource = null;
+  }
+}
+
+function showSSEToast(trabajador, restaurante) {
+  // Elimina toast anterior si existe
+  const prev = document.getElementById('sse-toast');
+  if (prev) prev.remove();
+  clearTimeout(_toastTimer);
+
+  const div = document.createElement('div');
+  div.className = 'sse-toast';
+  div.id = 'sse-toast';
+  div.innerHTML = `
+    <div class="toast-icon">🛒</div>
+    <div class="toast-body">
+      <div class="toast-title">Nuevo pedido</div>
+      <div class="toast-msg">${escHtml(trabajador)} &middot; ${escHtml(restaurante)}</div>
+    </div>
+    <button class="toast-close" onclick="document.getElementById('sse-toast').remove()">×</button>
+  `;
+  document.body.appendChild(div);
+  _toastTimer = setTimeout(() => div.remove(), 6000);
 }
 
 function showView(name) {
@@ -1170,6 +1276,8 @@ addItemRow();
 
 // Restore session: if already authenticated, go straight to owner view
 if (isAuthed()) {
+  requestNotifPermission();
+  subscribeSSE();
   showView('dueno');
 } else {
   showView('cocina');

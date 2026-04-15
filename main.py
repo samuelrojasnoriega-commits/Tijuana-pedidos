@@ -1,11 +1,13 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Float, DateTime, ForeignKey, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+import asyncio
+import json
 import os
 
 # ── Database ──────────────────────────────────────────────────────────────────
@@ -57,6 +59,21 @@ class ItemPedido(Base):
 
 
 Base.metadata.create_all(bind=engine)
+
+
+# ── SSE subscribers ───────────────────────────────────────────────────────────
+_subscribers: set = set()
+
+def _broadcast(data: dict) -> None:
+    """Envía un evento SSE a todos los clientes conectados."""
+    msg = f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+    dead = set()
+    for q in _subscribers:
+        try:
+            q.put_nowait(msg)
+        except asyncio.QueueFull:
+            dead.add(q)
+    _subscribers.difference_update(dead)
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -123,8 +140,41 @@ def root():
     return FileResponse(os.path.join(static_dir, "index.html"))
 
 
+@app.get("/eventos")
+async def eventos():
+    """Endpoint SSE — mantiene conexión abierta y emite eventos en tiempo real."""
+    queue: asyncio.Queue = asyncio.Queue(maxsize=50)
+    _subscribers.add(queue)
+
+    async def generator():
+        try:
+            # Confirmación de conexión
+            yield f"data: {json.dumps({'tipo': 'conectado'})}\n\n"
+            while True:
+                try:
+                    msg = await asyncio.wait_for(queue.get(), timeout=25)
+                    yield msg
+                except asyncio.TimeoutError:
+                    # Comentario SSE — mantiene viva la conexión en Railway/nginx
+                    yield ": keep-alive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            _subscribers.discard(queue)
+
+    return StreamingResponse(
+        generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",   # deshabilita buffer de nginx en Railway
+            "Connection": "keep-alive",
+        },
+    )
+
+
 @app.post("/pedidos", response_model=PedidoOut, status_code=201)
-def crear_pedido(body: PedidoIn, db: Session = Depends(get_db)):
+async def crear_pedido(body: PedidoIn, db: Session = Depends(get_db)):
     if not body.items:
         raise HTTPException(status_code=422, detail="El pedido debe tener al menos un ítem.")
 
@@ -151,6 +201,15 @@ def crear_pedido(body: PedidoIn, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(pedido)
+
+    _broadcast({
+        "tipo": "nuevo_pedido",
+        "id": pedido.id,
+        "trabajador": pedido.trabajador,
+        "restaurante": pedido.restaurante,
+        "hora": pedido.hora,
+    })
+
     return pedido
 
 
